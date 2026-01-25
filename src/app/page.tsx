@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { StepHeader } from "@/components/step-header";
-import { TextAreaBlock } from "@/components/textarea-block";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createWorkspace } from "@/app/actions/workspaces";
+import { Step1Form } from "@/components/step1-form";
 
 export default async function Home() {
   const supabase = await createServerSupabaseClient();
@@ -14,51 +15,51 @@ export default async function Home() {
     redirect("/login");
   }
 
+  const { data: workspaces, error: workspaceError } = await supabase
+    .from("workspaces")
+    .select("id,name,created_at")
+    .order("created_at", { ascending: true });
+
+  if (workspaceError) {
+    throw new Error(workspaceError.message);
+  }
+
+  let activeWorkspace = workspaces?.[0];
+
+  if (!activeWorkspace) {
+    activeWorkspace = await createWorkspace("My Strategy");
+  }
+
+  const { data: stepEntries, error: entriesError } = await supabase
+    .from("step_entries")
+    .select("field_key,content")
+    .eq("workspace_id", activeWorkspace.id)
+    .eq("step_id", 1);
+
+  if (entriesError) {
+    throw new Error(entriesError.message);
+  }
+
+  const initialValues = (stepEntries ?? []).reduce<Record<string, string>>(
+    (acc, entry) => {
+      acc[entry.field_key] = entry.content ?? "";
+      return acc;
+    },
+    {}
+  );
+
   return (
-    <AppShell>
+    <AppShell
+      workspaceId={activeWorkspace.id}
+      workspaceName={activeWorkspace.name}
+      currentStep={1}
+    >
       <div className="rounded-2xl border border-zinc-200/70 bg-white/90 p-6 shadow-sm">
         <StepHeader
           title="Business Model Mapping"
           description="Understand how your organisation creates, delivers, and captures value."
         />
-        <div className="grid gap-4 lg:grid-cols-3">
-          <TextAreaBlock
-            label="Customer Segments"
-            helperText="Who do you actually serve today?"
-          />
-          <TextAreaBlock
-            label="Value Proposition"
-            helperText="What makes your offer valuable?"
-          />
-          <TextAreaBlock
-            label="Channels"
-            helperText="How do customers find and reach you?"
-          />
-          <TextAreaBlock
-            label="Customer Relationships"
-            helperText="How do you keep customers connected?"
-          />
-          <TextAreaBlock
-            label="Revenue Streams"
-            helperText="Where does the money come from?"
-          />
-          <TextAreaBlock
-            label="Key Resources"
-            helperText="What assets make delivery possible?"
-          />
-          <TextAreaBlock
-            label="Key Activities"
-            helperText="What do you do to create value?"
-          />
-          <TextAreaBlock
-            label="Key Partnerships"
-            helperText="Who helps you deliver the offer?"
-          />
-          <TextAreaBlock
-            label="Cost Structure"
-            helperText="What are the biggest cost drivers?"
-          />
-        </div>
+        <Step1Form workspaceId={activeWorkspace.id} initialValues={initialValues} />
         <div className="mt-6 flex flex-col items-start gap-3 rounded-xl border border-dashed border-zinc-200 bg-zinc-50/70 p-4">
           <p className="text-sm text-zinc-600">
             Your business model is becoming clearer. You can refine this later.

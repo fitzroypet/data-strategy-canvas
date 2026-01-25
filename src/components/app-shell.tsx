@@ -1,11 +1,21 @@
+import Link from "next/link";
 import { steps } from "@/lib/steps";
 import { SidebarStepItem } from "@/components/sidebar-step-item";
+import { WorkspaceNameInput } from "@/components/workspace-name-input";
 
 type AppShellProps = {
   children: React.ReactNode;
+  workspaceId: string;
+  workspaceName: string;
+  currentStep?: number;
 };
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({
+  children,
+  workspaceId,
+  workspaceName,
+  currentStep = 1,
+}: AppShellProps) {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#f5f3f0_0%,_#f7f7f5_45%,_#ffffff_100%)] text-zinc-900">
       <div className="border-b border-zinc-200/70 bg-white/80 backdrop-blur">
@@ -19,10 +29,9 @@ export function AppShell({ children }: AppShellProps) {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <input
-              className="h-9 w-56 rounded-full border border-zinc-200 bg-white px-4 text-sm text-zinc-700 shadow-sm outline-none focus:border-zinc-400"
-              defaultValue="Acme Strategy"
-              aria-label="Workspace name"
+            <WorkspaceNameInput
+              workspaceId={workspaceId}
+              initialName={workspaceName}
             />
             <button className="h-9 rounded-full border border-zinc-200 px-4 text-sm font-medium text-zinc-700 hover:border-zinc-300">
               Export
@@ -42,13 +51,14 @@ export function AppShell({ children }: AppShellProps) {
             </div>
             <div className="flex flex-col gap-2">
               {steps.map((step) => (
-                <SidebarStepItem
-                  key={step.id}
-                  stepNumber={step.id}
-                  title={step.title}
-                  status={step.id === 1 ? "in_progress" : "draft"}
-                  isActive={step.id === 1}
-                />
+                <Link key={step.id} href={step.path} className="block">
+                  <SidebarStepItem
+                    stepNumber={step.id}
+                    title={step.title}
+                    status={step.id === 1 ? "in_progress" : "draft"}
+                    isActive={step.id === currentStep}
+                  />
+                </Link>
               ))}
             </div>
           </div>

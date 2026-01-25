@@ -1,9 +1,18 @@
 type TextAreaBlockProps = {
   label: string;
   helperText: string;
+  value?: string;
+  onChange?: (value: string) => void;
+  onBlur?: () => void;
 };
 
-export function TextAreaBlock({ label, helperText }: TextAreaBlockProps) {
+export function TextAreaBlock({
+  label,
+  helperText,
+  value,
+  onChange,
+  onBlur,
+}: TextAreaBlockProps) {
   return (
     <label className="flex flex-col gap-2 text-sm text-zinc-700">
       <span className="text-sm font-semibold text-zinc-800">{label}</span>
@@ -11,6 +20,9 @@ export function TextAreaBlock({ label, helperText }: TextAreaBlockProps) {
       <textarea
         className="min-h-[120px] rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 shadow-sm outline-none transition focus:border-zinc-400"
         placeholder="Write your thinking here..."
+        value={value}
+        onChange={(event) => onChange?.(event.target.value)}
+        onBlur={onBlur}
       />
     </label>
   );
