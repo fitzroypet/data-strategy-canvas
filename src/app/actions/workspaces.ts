@@ -40,7 +40,7 @@ export async function createWorkspace(name: string) {
   const { data, error } = await supabase
     .from("workspaces")
     .insert({ name, user_id: user.id })
-    .select("id,name")
+    .select("id,name,created_at")
     .single();
 
   if (error) {
