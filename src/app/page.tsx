@@ -65,9 +65,12 @@ export default async function Home() {
             Your business model is becoming clearer. You can refine this later.
             Move forward when ready.
           </p>
-          <button className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800">
+          <a
+            href="/step/2"
+            className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+          >
             Continue to Step 2
-          </button>
+          </a>
         </div>
       </div>
     </AppShell>
