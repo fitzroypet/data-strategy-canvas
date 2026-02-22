@@ -166,7 +166,7 @@ export function WorkspacesCard({ initialWorkspaces }: WorkspacesCardProps) {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Link
-                  href={{ pathname: "/", query: { workspace: workspace.id } }}
+                  href={{ pathname: "/canvas", query: { workspace: workspace.id } }}
                   className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-700 hover:border-zinc-300"
                 >
                   Open
@@ -223,4 +223,3 @@ export function WorkspacesCard({ initialWorkspaces }: WorkspacesCardProps) {
     </section>
   );
 }
-

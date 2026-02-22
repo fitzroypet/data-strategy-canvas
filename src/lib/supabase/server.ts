@@ -17,10 +17,17 @@ export async function createServerSupabaseClient() {
         return cookieStore.get(name)?.value;
       },
       set(name, value, options) {
-        cookieStore.set({ name, value, ...options });
+        // In Server Components, Next.js makes cookies read-only.
+        // Supabase may still attempt a write during auth refresh; ignore it here.
+        try {
+          cookieStore.set({ name, value, ...options });
+        } catch {}
       },
       remove(name, options) {
-        cookieStore.set({ name, value: "", ...options });
+        // Same rationale as set(): allow reads everywhere, writes only where permitted.
+        try {
+          cookieStore.set({ name, value: "", ...options });
+        } catch {}
       },
     },
   });

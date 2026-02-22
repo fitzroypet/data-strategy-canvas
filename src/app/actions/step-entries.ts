@@ -38,6 +38,6 @@ export async function upsertStepEntries(
     throw new Error(error.message);
   }
 
-  revalidatePath("/");
+  revalidatePath("/canvas");
   revalidatePath(`/step/${stepId}`);
 }

@@ -2,17 +2,12 @@
 
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { steps } from "@/lib/steps";
+import { buildWorkspaceAiContext } from "@/lib/ai-context";
 
 type GetAiChatReplyArgs = {
   workspaceId: string;
   currentStepId: number;
   userMessage: string;
-};
-
-type StepEntryRow = {
-  step_id: number;
-  field_key: string;
-  content: string | null;
 };
 
 type WorkspaceOwnershipRow = {
@@ -30,39 +25,6 @@ function requireAiChatEnabled() {
 
 function currentStepTitle(stepId: number) {
   return steps.find((entry) => entry.id === stepId)?.title ?? `Step ${stepId}`;
-}
-
-function buildWorkspaceContext(entries: StepEntryRow[]) {
-  const grouped = new Map<number, Array<{ fieldKey: string; content: string }>>();
-
-  for (const row of entries) {
-    const cleaned = (row.content ?? "").trim();
-    if (!cleaned) {
-      continue;
-    }
-
-    const list = grouped.get(row.step_id) ?? [];
-    list.push({
-      fieldKey: row.field_key,
-      content: cleaned,
-    });
-    grouped.set(row.step_id, list);
-  }
-
-  const lines: string[] = [];
-  for (const step of steps) {
-    lines.push(`Step ${step.id} - ${step.title}`);
-    const list = grouped.get(step.id) ?? [];
-    if (list.length === 0) {
-      lines.push("- (no saved content)");
-      continue;
-    }
-    for (const item of list) {
-      lines.push(`- ${item.fieldKey}: ${item.content}`);
-    }
-  }
-
-  return lines.join("\n");
 }
 
 export async function getAiChatReply({
@@ -101,17 +63,9 @@ export async function getAiChatReply({
     throw new Error("Workspace not found or access denied.");
   }
 
-  const { data: entries, error: entriesError } = await supabase
-    .from("step_entries")
-    .select("step_id,field_key,content")
-    .eq("workspace_id", workspaceId)
-    .order("step_id", { ascending: true });
+  const { stepEntriesContext, documentContext, contextStats } =
+    await buildWorkspaceAiContext(supabase, workspaceId);
 
-  if (entriesError) {
-    throw new Error(entriesError.message);
-  }
-
-  const workspaceContext = buildWorkspaceContext((entries ?? []) as StepEntryRow[]);
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error("Missing OPENAI_API_KEY environment variable.");
@@ -131,14 +85,18 @@ export async function getAiChatReply({
         {
           role: "system",
           content:
-            "You are a practical data strategy coach. Give concise, actionable advice. Do not invent facts. If information is missing, say so clearly.",
+            "You are a practical data strategy coach. Prioritize the user's current step unless they explicitly ask for another step. Give concise, actionable advice with concrete next actions. Do not use placeholders like 'repeat similarly'. When giving templates, include one fully worked example and a concise checklist. Avoid domain assumptions not present in workspace or document context; if needed, label them as Assumption. Treat workspace documents as reference context and do not fabricate facts.",
         },
         {
           role: "user",
           content: [
             `Current step: ${currentStepTitle(currentStepId)}.`,
-            "Use whole workspace context below when advising:",
-            workspaceContext,
+            "",
+            "Step entries context:",
+            stepEntriesContext,
+            "",
+            "Workspace documents context:",
+            documentContext,
             "",
             `User question: ${message}`,
           ].join("\n"),
@@ -163,6 +121,6 @@ export async function getAiChatReply({
 
   return {
     reply,
+    contextStats,
   };
 }
-

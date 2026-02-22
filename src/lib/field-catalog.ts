@@ -141,3 +141,6 @@ export function groupFieldDefinitionsByStep() {
   return grouped;
 }
 
+export function getFieldDefinitionsForStep(stepId: number) {
+  return stepFieldDefinitions.filter((entry) => entry.stepId === stepId);
+}

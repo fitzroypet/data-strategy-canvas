@@ -363,6 +363,7 @@ export async function applyImportRun(
   }
 
   revalidatePath("/");
+  revalidatePath("/canvas");
   for (const stepId of [2, 3, 4, 5, 6]) {
     revalidatePath(`/step/${stepId}`);
   }
@@ -431,4 +432,3 @@ export async function expireWorkspaceDocuments() {
 
   return { expiredCount: ids.length };
 }
-

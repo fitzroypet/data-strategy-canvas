@@ -4,10 +4,14 @@ export type WorkspaceSummary = {
   id: string;
   name: string;
   created_at: string;
+  onboarding_status?: string | null;
 };
 
-export function getWorkspaceQueryId(searchParams?: SearchParamsInput) {
-  const raw = searchParams?.workspace;
+function getSingleQueryParam(
+  searchParams: SearchParamsInput | undefined,
+  key: string
+) {
+  const raw = searchParams?.[key];
 
   if (typeof raw === "string" && raw.trim()) {
     return raw;
@@ -18,6 +22,29 @@ export function getWorkspaceQueryId(searchParams?: SearchParamsInput) {
   }
 
   return undefined;
+}
+
+export function getWorkspaceQueryId(searchParams?: SearchParamsInput) {
+  return getSingleQueryParam(searchParams, "workspace");
+}
+
+export function getOnboardingNoticeStep(searchParams?: SearchParamsInput) {
+  const notice = getSingleQueryParam(searchParams, "onboarding_notice");
+  if (notice !== "completed") {
+    return null;
+  }
+
+  const stepRaw = getSingleQueryParam(searchParams, "onboarding_step");
+  if (!stepRaw) {
+    return 1;
+  }
+
+  const parsed = Number(stepRaw);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return 1;
+  }
+
+  return Math.floor(parsed);
 }
 
 export function resolveActiveWorkspace(

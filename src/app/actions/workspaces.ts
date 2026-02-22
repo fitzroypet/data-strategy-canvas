@@ -39,7 +39,7 @@ export async function createWorkspace(name: string) {
 
   const { data, error } = await supabase
     .from("workspaces")
-    .insert({ name, user_id: user.id })
+    .insert({ name, user_id: user.id, onboarding_status: "pending" })
     .select("id,name,created_at")
     .single();
 
@@ -48,6 +48,7 @@ export async function createWorkspace(name: string) {
   }
 
   revalidatePath("/");
+  revalidatePath("/canvas");
   revalidatePath("/dashboard");
 
   return data;
@@ -74,6 +75,7 @@ export async function updateWorkspaceName(workspaceId: string, name: string) {
   }
 
   revalidatePath("/");
+  revalidatePath("/canvas");
   revalidatePath("/dashboard");
 }
 
@@ -98,5 +100,6 @@ export async function deleteWorkspace(workspaceId: string) {
   }
 
   revalidatePath("/");
+  revalidatePath("/canvas");
   revalidatePath("/dashboard");
 }

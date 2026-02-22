@@ -28,6 +28,16 @@ export async function extractTextFromDocument(file: File) {
   const arrayBuffer = await file.arrayBuffer();
 
   if (
+    extension === "md" ||
+    extension === "txt" ||
+    mimeType === "text/plain" ||
+    mimeType === "text/markdown" ||
+    mimeType === "text/x-markdown"
+  ) {
+    return normalizeExtractedText(new TextDecoder().decode(arrayBuffer));
+  }
+
+  if (
     extension === "docx" ||
     mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   ) {
@@ -54,6 +64,5 @@ export async function extractTextFromDocument(file: File) {
     }
   }
 
-  throw new Error("Unsupported file type. Please upload a DOCX or PDF document.");
+  throw new Error("Unsupported file type. Please upload DOCX, PDF, MD, or TXT.");
 }
-

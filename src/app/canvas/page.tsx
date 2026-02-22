@@ -1,43 +1,29 @@
-import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { StepHeader } from "@/components/step-header";
 import { StepAiDraftControls } from "@/components/step-ai-draft-controls";
-import { Step2Form } from "@/components/step2-form";
-import { Step3Form } from "@/components/step3-form";
-import { Step4Form } from "@/components/step4-form";
-import { Step5Form } from "@/components/step5-form";
-import { Step6Form } from "@/components/step6-form";
-import { createWorkspace } from "@/app/actions/workspaces";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { shouldRedirectWorkspaceToOnboarding } from "@/lib/onboarding";
-import { steps } from "@/lib/steps";
+import { createWorkspace } from "@/app/actions/workspaces";
+import { Step1Form } from "@/components/step1-form";
 import { computeStepStatuses, type StepEntryRecord } from "@/lib/step-status";
+import { shouldRedirectWorkspaceToOnboarding } from "@/lib/onboarding";
 import {
+  getWorkspaceQueryId,
+  getOnboardingNoticeStep,
   resolveActiveWorkspace,
+  type SearchParamsInput,
   type WorkspaceSummary,
 } from "@/lib/workspace-selection";
 
-export async function renderStep(
-  stepId: number,
-  requestedWorkspaceId?: string,
-  onboardingNoticeStep?: number | null
-) {
-  if (!Number.isFinite(stepId)) {
-    notFound();
-  }
+type CanvasPageProps = {
+  searchParams?: SearchParamsInput | Promise<SearchParamsInput>;
+};
 
-  if (stepId === 1) {
-    if (requestedWorkspaceId) {
-      redirect(`/canvas?workspace=${requestedWorkspaceId}`);
-    }
-    redirect("/canvas");
-  }
-
-  const stepMeta = steps.find((step) => step.id === stepId);
-
-  if (!stepMeta || stepId < 2 || stepId > 6) {
-    notFound();
-  }
+export default async function CanvasPage({ searchParams }: CanvasPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const requestedWorkspaceId = getWorkspaceQueryId(resolvedSearchParams);
+  const onboardingNoticeStep = getOnboardingNoticeStep(resolvedSearchParams);
 
   const supabase = await createServerSupabaseClient();
   const {
@@ -50,7 +36,7 @@ export async function renderStep(
 
   const { data: workspaceRows, error: workspaceError } = await supabase
     .from("workspaces")
-    .select("id,name,created_at,onboarding_status")
+    .select("id,name,created_at")
     .order("created_at", { ascending: false });
 
   if (workspaceError) {
@@ -66,7 +52,7 @@ export async function renderStep(
   }
 
   if (await shouldRedirectWorkspaceToOnboarding(supabase, user.id, activeWorkspace.id)) {
-    const nextPath = `/step/${stepId}?workspace=${activeWorkspace.id}`;
+    const nextPath = `/canvas?workspace=${activeWorkspace.id}`;
     redirect(
       `/onboarding?workspace=${activeWorkspace.id}&next=${encodeURIComponent(nextPath)}`
     );
@@ -85,7 +71,7 @@ export async function renderStep(
   const stepStatuses = computeStepStatuses(typedEntries);
 
   const initialValues = typedEntries
-    .filter((entry) => entry.step_id === stepId)
+    .filter((entry) => entry.step_id === 1)
     .reduce<Record<string, string>>((acc, entry) => {
       acc[entry.field_key] = entry.content ?? "";
       return acc;
@@ -101,49 +87,32 @@ export async function renderStep(
       aiChatEnabled={process.env.AI_CHAT_PANEL_ENABLED === "true"}
       workspaceDocLibraryEnabled={process.env.WORKSPACE_DOC_LIBRARY_ENABLED === "true"}
       onboardingEnabled={process.env.ONBOARDING_V1_ENABLED === "true"}
-      onboardingNoticeStep={onboardingNoticeStep ?? null}
-      currentStep={stepId}
+      onboardingNoticeStep={onboardingNoticeStep}
+      currentStep={1}
     >
       <div className="rounded-2xl border border-zinc-200/70 bg-white/90 p-6 shadow-sm">
         <StepHeader
-          title={stepMeta.title}
-          description={stepMeta.description}
+          title="Business Model Mapping"
+          description="Understand how your organisation creates, delivers, and captures value."
           actions={
             process.env.AI_STEP_DRAFT_ENABLED === "true" ? (
-              <StepAiDraftControls workspaceId={activeWorkspace.id} stepId={stepId} />
+              <StepAiDraftControls workspaceId={activeWorkspace.id} stepId={1} />
             ) : null
           }
         />
-        {stepId === 2 && (
-          <Step2Form
-            workspaceId={activeWorkspace.id}
-            initialValues={initialValues}
-          />
-        )}
-        {stepId === 3 && (
-          <Step3Form
-            workspaceId={activeWorkspace.id}
-            initialValues={initialValues}
-          />
-        )}
-        {stepId === 4 && (
-          <Step4Form
-            workspaceId={activeWorkspace.id}
-            initialValues={initialValues}
-          />
-        )}
-        {stepId === 5 && (
-          <Step5Form
-            workspaceId={activeWorkspace.id}
-            initialValues={initialValues}
-          />
-        )}
-        {stepId === 6 && (
-          <Step6Form
-            workspaceId={activeWorkspace.id}
-            initialValues={initialValues}
-          />
-        )}
+        <Step1Form workspaceId={activeWorkspace.id} initialValues={initialValues} />
+        <div className="mt-6 flex flex-col items-start gap-3 rounded-xl border border-dashed border-zinc-200 bg-zinc-50/70 p-4">
+          <p className="text-sm text-zinc-600">
+            Your business model is becoming clearer. You can refine this later.
+            Move forward when ready.
+          </p>
+          <Link
+            href={{ pathname: "/step/2", query: { workspace: activeWorkspace.id } }}
+            className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+          >
+            Continue to Step 2
+          </Link>
+        </div>
       </div>
     </AppShell>
   );

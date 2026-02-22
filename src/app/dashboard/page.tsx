@@ -42,7 +42,11 @@ export default async function DashboardPage() {
             </div>
           </div>
           <Link
-            href={workspaces[0] ? { pathname: "/", query: { workspace: workspaces[0].id } } : "/"}
+            href={
+              workspaces[0]
+                ? { pathname: "/canvas", query: { workspace: workspaces[0].id } }
+                : "/canvas"
+            }
             className="rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:border-zinc-300"
           >
             Back to Canvas
@@ -66,4 +70,3 @@ export default async function DashboardPage() {
     </div>
   );
 }
-

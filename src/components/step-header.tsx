@@ -1,9 +1,10 @@
 type StepHeaderProps = {
   title: string;
   description: string;
+  actions?: React.ReactNode;
 };
 
-export function StepHeader({ title, description }: StepHeaderProps) {
+export function StepHeader({ title, description, actions }: StepHeaderProps) {
   return (
     <header className="mb-6">
       <div className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
@@ -13,6 +14,7 @@ export function StepHeader({ title, description }: StepHeaderProps) {
         {title}
       </h1>
       <p className="mt-2 text-base text-zinc-600">{description}</p>
+      {actions}
     </header>
   );
 }

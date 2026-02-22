@@ -3,6 +3,9 @@
 import { useEffect, useState, useTransition } from "react";
 import { getAiChatReply } from "@/app/actions/ai-chat";
 import { useStepFormContext } from "@/components/step-form-context";
+import { createWorkspaceDraftFromChat } from "@/app/actions/workspace-documents";
+import { AiStepPreviewModal } from "@/components/ai-step-preview-modal";
+import { getStepFieldStructure } from "@/lib/step-structure";
 
 type AiMessage = {
   id: string;
@@ -10,12 +13,26 @@ type AiMessage = {
   content: string;
 };
 
-const quickPrompts = [
-  "Help me refine this step for clarity.",
+type ContextStats = {
+  docCount: number;
+  truncatedDocCount: number;
+  totalCharsUsed: number;
+};
+
+const chatPrompts = [
   "What assumptions in my strategy look weak?",
   "What is missing in my current draft?",
   "Give me a concise rewrite I can use directly.",
 ];
+
+const draftActions = [{ id: "refine_step", label: "Refine This Step" }];
+
+const structuredIntentPrompts = new Set([
+  "help me refine this step for clarity.",
+  "help me refine this step for clarity",
+  "refine this step",
+  "generate this step",
+]);
 
 type AiChatPanelProps = {
   workspaceId: string;
@@ -29,8 +46,11 @@ function makeId() {
 export function AiChatPanel({ workspaceId, currentStepId }: AiChatPanelProps) {
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [input, setInput] = useState("");
+  const [focusSectionId, setFocusSectionId] = useState("all");
+  const [draftTriggerToken, setDraftTriggerToken] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [contextStats, setContextStats] = useState<ContextStats | null>(null);
   const [isPending, startTransition] = useTransition();
   const { selectedFieldKey, selectedFieldLabel, insertIntoSelectedField } =
     useStepFormContext();
@@ -40,11 +60,40 @@ export function AiChatPanel({ workspaceId, currentStepId }: AiChatPanelProps) {
     setInput("");
     setError(null);
     setFeedback(null);
+    setContextStats(null);
+    setFocusSectionId("all");
+    setDraftTriggerToken(0);
   }, [workspaceId, currentStepId]);
+
+  const sectionOptions = (() => {
+    const seen = new Set<string>();
+    return getStepFieldStructure(currentStepId).reduce<Array<{ id: string; label: string }>>(
+      (acc, field) => {
+        if (!seen.has(field.sectionId)) {
+          seen.add(field.sectionId);
+          acc.push({ id: field.sectionId, label: field.sectionLabel });
+        }
+        return acc;
+      },
+      []
+    );
+  })();
+
+  const triggerStructuredDraft = (feedbackText = "Opening structured draft preview.") => {
+    setError(null);
+    setFeedback(feedbackText);
+    setDraftTriggerToken((prev) => prev + 1);
+  };
 
   const sendMessage = (content: string) => {
     const message = content.trim();
     if (!message) {
+      return;
+    }
+
+    if (structuredIntentPrompts.has(message.toLowerCase())) {
+      triggerStructuredDraft("Routed to Structured Draft for this step.");
+      setInput("");
       return;
     }
 
@@ -60,6 +109,7 @@ export function AiChatPanel({ workspaceId, currentStepId }: AiChatPanelProps) {
           currentStepId,
           userMessage: message,
         });
+        setContextStats(result.contextStats);
         setMessages((prev) => [
           ...prev,
           { id: makeId(), role: "assistant", content: result.reply },
@@ -84,6 +134,30 @@ export function AiChatPanel({ workspaceId, currentStepId }: AiChatPanelProps) {
     setFeedback("Inserted into selected field.");
   };
 
+  const saveDraftFromMessage = (content: string) => {
+    setError(null);
+    setFeedback(null);
+
+    startTransition(async () => {
+      try {
+        const now = new Date();
+        const dateLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+          2,
+          "0"
+        )}-${String(now.getDate()).padStart(2, "0")}`;
+        await createWorkspaceDraftFromChat(workspaceId, {
+          title: `AI Draft ${dateLabel}`,
+          content,
+        });
+        setFeedback("Saved as workspace draft.");
+      } catch (draftError) {
+        const messageText =
+          draftError instanceof Error ? draftError.message : "Could not save draft.";
+        setError(messageText);
+      }
+    });
+  };
+
   return (
     <div className="flex h-full min-h-[480px] w-full flex-col rounded-2xl border border-zinc-200/70 bg-white/80 p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-2">
@@ -92,7 +166,7 @@ export function AiChatPanel({ workspaceId, currentStepId }: AiChatPanelProps) {
             Refine With AI
           </div>
           <p className="mt-1 text-xs text-zinc-600">
-            Chat with context from your whole workspace.
+            Structured drafting + chat with workspace context.
           </p>
         </div>
         <button
@@ -107,12 +181,69 @@ export function AiChatPanel({ workspaceId, currentStepId }: AiChatPanelProps) {
           Clear chat
         </button>
       </div>
+      <div className="mb-3 rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+          Structured Draft (Cell-Level)
+        </div>
+        <p className="mt-1 text-xs text-zinc-600">
+          Generate precise per-cell drafts for this step.
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <label className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700">
+            <span>Focus</span>
+            <select
+              value={focusSectionId}
+              onChange={(event) => setFocusSectionId(event.target.value)}
+              className="h-6 rounded-full border border-zinc-200 bg-white px-2 text-xs text-zinc-700 outline-none focus:border-zinc-400"
+              aria-label="Focus section"
+            >
+              <option value="all">This step</option>
+              {sectionOptions.map((section) => (
+                <option key={section.id} value={section.id}>
+                  {section.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {draftActions.map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              onClick={() => triggerStructuredDraft("Running structured step draft.")}
+              className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:border-zinc-300"
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+        <AiStepPreviewModal
+          workspaceId={workspaceId}
+          stepId={currentStepId}
+          focusSectionId={focusSectionId}
+          onFocusSectionIdChange={setFocusSectionId}
+          triggerGenerateToken={draftTriggerToken}
+        />
+      </div>
 
-      <div className="mb-3 rounded-xl border border-zinc-200 bg-zinc-50/70 px-3 py-2 text-xs text-zinc-600">
-        Target:{" "}
-        <span className="font-medium text-zinc-800">
-          {selectedFieldLabel ?? "None selected"}
-        </span>
+      <div className="mb-3 rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+          Chat Assistant (Free Text)
+        </div>
+        <p className="mt-1 text-xs text-zinc-600">
+          Advisory guidance for critique, assumptions, and rewrites.
+        </p>
+        <div className="mt-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600">
+          Target:{" "}
+          <span className="font-medium text-zinc-800">
+            {selectedFieldLabel ?? "None selected"}
+          </span>
+        </div>
+        {contextStats && (
+          <div className="mt-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[11px] text-zinc-600">
+            Context docs: {contextStats.docCount}; truncated/skipped: {contextStats.truncatedDocCount}; chars used:{" "}
+            {contextStats.totalCharsUsed}.
+          </div>
+        )}
       </div>
 
       {messages.length === 0 && (
@@ -121,7 +252,7 @@ export function AiChatPanel({ workspaceId, currentStepId }: AiChatPanelProps) {
             Start with a quick prompt or ask your own question.
           </p>
           <div className="flex flex-col gap-2">
-            {quickPrompts.map((prompt) => (
+            {chatPrompts.map((prompt) => (
               <button
                 key={prompt}
                 type="button"
@@ -166,6 +297,13 @@ export function AiChatPanel({ workspaceId, currentStepId }: AiChatPanelProps) {
                 >
                   Copy
                 </button>
+                <button
+                  type="button"
+                  onClick={() => saveDraftFromMessage(message.content)}
+                  className="rounded-full border border-zinc-200 px-2 py-1 text-xs font-medium text-zinc-700 hover:border-zinc-300"
+                >
+                  Save as workspace draft
+                </button>
               </div>
             )}
           </div>
@@ -199,4 +337,3 @@ export function AiChatPanel({ workspaceId, currentStepId }: AiChatPanelProps) {
     </div>
   );
 }
-

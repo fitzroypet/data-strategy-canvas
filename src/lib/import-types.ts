@@ -1,4 +1,5 @@
 export type WorkspaceDocumentStatus = "uploaded" | "processed" | "expired" | "failed";
+export type WorkspaceDocumentSource = "import" | "landing_intake" | "chat_draft";
 export type ImportRunStatus = "parsed" | "previewed" | "applied" | "failed";
 
 export type ImportPreviewItem = {
@@ -31,4 +32,3 @@ export type ApplyImportResult = {
   appliedFieldsCount: number;
   skippedFieldsCount: number;
 };
-

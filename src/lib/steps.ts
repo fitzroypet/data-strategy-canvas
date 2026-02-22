@@ -6,7 +6,7 @@ export const steps = [
     key: "business_model",
     title: "Business Model Mapping",
     description: "Understand how your organisation creates, delivers, and captures value.",
-    path: "/",
+    path: "/canvas",
   },
   {
     id: 2,
