@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { updateWorkspaceName } from "@/app/actions/workspaces";
 
 type WorkspaceNameInputProps = {
@@ -16,6 +16,11 @@ export function WorkspaceNameInput({
   const [lastSaved, setLastSaved] = useState(initialName);
   const [isPending, startTransition] = useTransition();
 
+  useEffect(() => {
+    setName(initialName);
+    setLastSaved(initialName);
+  }, [initialName, workspaceId]);
+
   const handleBlur = () => {
     const trimmed = name.trim();
     if (!trimmed || trimmed === lastSaved) {
@@ -26,6 +31,7 @@ export function WorkspaceNameInput({
     startTransition(async () => {
       await updateWorkspaceName(workspaceId, trimmed);
       setLastSaved(trimmed);
+      setName(trimmed);
     });
   };
 

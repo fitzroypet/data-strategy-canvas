@@ -1,5 +1,11 @@
 import { renderStep } from "@/app/step/step-page";
+import { getWorkspaceQueryId, type SearchParamsInput } from "@/lib/workspace-selection";
 
-export default async function Step5Page() {
-  return renderStep(5);
+type Step5PageProps = {
+  searchParams?: SearchParamsInput | Promise<SearchParamsInput>;
+};
+
+export default async function Step5Page({ searchParams }: Step5PageProps) {
+  const resolvedSearchParams = await searchParams;
+  return renderStep(5, getWorkspaceQueryId(resolvedSearchParams));
 }

@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { SaveIndicator } from "@/components/save-indicator";
 import { useStepAutosave } from "@/hooks/use-step-autosave";
+import { useStepFormContext } from "@/components/step-form-context";
 
 type Step4FormProps = {
   workspaceId: string;
@@ -42,6 +44,15 @@ export function Step4Form({ workspaceId, initialValues }: Step4FormProps) {
     stepId: 4,
     initialValues,
   });
+  const { setFormAccessors, setSelectedFieldKey, selectedFieldKey } =
+    useStepFormContext();
+
+  useEffect(() => {
+    setFormAccessors(
+      (fieldKey) => values[fieldKey] ?? "",
+      (fieldKey, content) => setFieldValue(fieldKey, content)
+    );
+  }, [values, setFieldValue, setFormAccessors]);
 
   return (
     <div>
@@ -75,13 +86,18 @@ export function Step4Form({ workspaceId, initialValues }: Step4FormProps) {
               return (
                 <textarea
                   key={fieldKey}
-                  className="min-h-[84px] rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 shadow-sm outline-none transition focus:border-zinc-400"
+                  className={`min-h-[84px] rounded-xl border bg-white px-3 py-2 text-sm text-zinc-700 shadow-sm outline-none transition focus:border-zinc-400 ${
+                    selectedFieldKey === fieldKey
+                      ? "border-zinc-400 ring-2 ring-zinc-200"
+                      : "border-zinc-200"
+                  }`}
                   placeholder="Add notes"
                   value={values[fieldKey] ?? ""}
                   onChange={(event) =>
                     setFieldValue(fieldKey, event.target.value)
                   }
                   onBlur={handleBlur}
+                  onFocus={() => setSelectedFieldKey(fieldKey)}
                 />
               );
             })}

@@ -48,6 +48,7 @@ export async function createWorkspace(name: string) {
   }
 
   revalidatePath("/");
+  revalidatePath("/dashboard");
 
   return data;
 }
@@ -73,6 +74,7 @@ export async function updateWorkspaceName(workspaceId: string, name: string) {
   }
 
   revalidatePath("/");
+  revalidatePath("/dashboard");
 }
 
 export async function deleteWorkspace(workspaceId: string) {
@@ -96,4 +98,5 @@ export async function deleteWorkspace(workspaceId: string) {
   }
 
   revalidatePath("/");
+  revalidatePath("/dashboard");
 }

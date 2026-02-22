@@ -9,13 +9,21 @@ import { Step6Form } from "@/components/step6-form";
 import { createWorkspace } from "@/app/actions/workspaces";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { steps } from "@/lib/steps";
+import { computeStepStatuses, type StepEntryRecord } from "@/lib/step-status";
+import {
+  resolveActiveWorkspace,
+  type WorkspaceSummary,
+} from "@/lib/workspace-selection";
 
-export async function renderStep(stepId: number) {
+export async function renderStep(stepId: number, requestedWorkspaceId?: string) {
   if (!Number.isFinite(stepId)) {
     notFound();
   }
 
   if (stepId === 1) {
+    if (requestedWorkspaceId) {
+      redirect(`/?workspace=${requestedWorkspaceId}`);
+    }
     redirect("/");
   }
 
@@ -34,43 +42,50 @@ export async function renderStep(stepId: number) {
     redirect("/login");
   }
 
-  const { data: workspaces, error: workspaceError } = await supabase
+  const { data: workspaceRows, error: workspaceError } = await supabase
     .from("workspaces")
     .select("id,name,created_at")
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false });
 
   if (workspaceError) {
     throw new Error(workspaceError.message);
   }
 
-  let activeWorkspace = workspaces?.[0];
+  let workspaces = (workspaceRows ?? []) as WorkspaceSummary[];
+  let activeWorkspace = resolveActiveWorkspace(workspaces, requestedWorkspaceId);
 
   if (!activeWorkspace) {
     activeWorkspace = await createWorkspace("My Strategy");
+    workspaces = [activeWorkspace, ...workspaces];
   }
 
   const { data: stepEntries, error: entriesError } = await supabase
     .from("step_entries")
-    .select("field_key,content")
-    .eq("workspace_id", activeWorkspace.id)
-    .eq("step_id", stepId);
+    .select("step_id,field_key,content")
+    .eq("workspace_id", activeWorkspace.id);
 
   if (entriesError) {
     throw new Error(entriesError.message);
   }
 
-  const initialValues = (stepEntries ?? []).reduce<Record<string, string>>(
-    (acc, entry) => {
+  const typedEntries = (stepEntries ?? []) as StepEntryRecord[];
+  const stepStatuses = computeStepStatuses(typedEntries);
+
+  const initialValues = typedEntries
+    .filter((entry) => entry.step_id === stepId)
+    .reduce<Record<string, string>>((acc, entry) => {
       acc[entry.field_key] = entry.content ?? "";
       return acc;
-    },
-    {}
-  );
+    }, {});
 
   return (
     <AppShell
       workspaceId={activeWorkspace.id}
       workspaceName={activeWorkspace.name}
+      workspaces={workspaces}
+      stepStatuses={stepStatuses}
+      importEnabled={process.env.IMPORT_STRATEGY_ENABLED === "true"}
+      aiChatEnabled={process.env.AI_CHAT_PANEL_ENABLED === "true"}
       currentStep={stepId}
     >
       <div className="rounded-2xl border border-zinc-200/70 bg-white/90 p-6 shadow-sm">

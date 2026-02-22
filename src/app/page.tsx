@@ -1,11 +1,25 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { StepHeader } from "@/components/step-header";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createWorkspace } from "@/app/actions/workspaces";
 import { Step1Form } from "@/components/step1-form";
+import { computeStepStatuses, type StepEntryRecord } from "@/lib/step-status";
+import {
+  getWorkspaceQueryId,
+  resolveActiveWorkspace,
+  type SearchParamsInput,
+  type WorkspaceSummary,
+} from "@/lib/workspace-selection";
 
-export default async function Home() {
+type HomeProps = {
+  searchParams?: SearchParamsInput | Promise<SearchParamsInput>;
+};
+
+export default async function Home({ searchParams }: HomeProps) {
+  const resolvedSearchParams = await searchParams;
+
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
@@ -15,43 +29,53 @@ export default async function Home() {
     redirect("/login");
   }
 
-  const { data: workspaces, error: workspaceError } = await supabase
+  const { data: workspaceRows, error: workspaceError } = await supabase
     .from("workspaces")
     .select("id,name,created_at")
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false });
 
   if (workspaceError) {
     throw new Error(workspaceError.message);
   }
 
-  let activeWorkspace = workspaces?.[0];
+  let workspaces = (workspaceRows ?? []) as WorkspaceSummary[];
+  let activeWorkspace = resolveActiveWorkspace(
+    workspaces,
+    getWorkspaceQueryId(resolvedSearchParams)
+  );
 
   if (!activeWorkspace) {
     activeWorkspace = await createWorkspace("My Strategy");
+    workspaces = [activeWorkspace, ...workspaces];
   }
 
   const { data: stepEntries, error: entriesError } = await supabase
     .from("step_entries")
-    .select("field_key,content")
-    .eq("workspace_id", activeWorkspace.id)
-    .eq("step_id", 1);
+    .select("step_id,field_key,content")
+    .eq("workspace_id", activeWorkspace.id);
 
   if (entriesError) {
     throw new Error(entriesError.message);
   }
 
-  const initialValues = (stepEntries ?? []).reduce<Record<string, string>>(
-    (acc, entry) => {
+  const typedEntries = (stepEntries ?? []) as StepEntryRecord[];
+  const stepStatuses = computeStepStatuses(typedEntries);
+
+  const initialValues = typedEntries
+    .filter((entry) => entry.step_id === 1)
+    .reduce<Record<string, string>>((acc, entry) => {
       acc[entry.field_key] = entry.content ?? "";
       return acc;
-    },
-    {}
-  );
+    }, {});
 
   return (
     <AppShell
       workspaceId={activeWorkspace.id}
       workspaceName={activeWorkspace.name}
+      workspaces={workspaces}
+      stepStatuses={stepStatuses}
+      importEnabled={process.env.IMPORT_STRATEGY_ENABLED === "true"}
+      aiChatEnabled={process.env.AI_CHAT_PANEL_ENABLED === "true"}
       currentStep={1}
     >
       <div className="rounded-2xl border border-zinc-200/70 bg-white/90 p-6 shadow-sm">
@@ -65,12 +89,12 @@ export default async function Home() {
             Your business model is becoming clearer. You can refine this later.
             Move forward when ready.
           </p>
-          <a
-            href="/step/2"
+          <Link
+            href={{ pathname: "/step/2", query: { workspace: activeWorkspace.id } }}
             className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
           >
             Continue to Step 2
-          </a>
+          </Link>
         </div>
       </div>
     </AppShell>

@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import { SaveIndicator } from "@/components/save-indicator";
 import { TextAreaBlock } from "@/components/textarea-block";
 import { useStepAutosave } from "@/hooks/use-step-autosave";
+import { useStepFormContext } from "@/components/step-form-context";
 
 type Step6FormProps = {
   workspaceId: string;
@@ -38,6 +40,15 @@ export function Step6Form({ workspaceId, initialValues }: Step6FormProps) {
     stepId: 6,
     initialValues,
   });
+  const { setFormAccessors, setSelectedFieldKey, selectedFieldKey } =
+    useStepFormContext();
+
+  useEffect(() => {
+    setFormAccessors(
+      (fieldKey) => values[fieldKey] ?? "",
+      (fieldKey, content) => setFieldValue(fieldKey, content)
+    );
+  }, [values, setFieldValue, setFormAccessors]);
 
   return (
     <div className="space-y-4">
@@ -46,11 +57,14 @@ export function Step6Form({ workspaceId, initialValues }: Step6FormProps) {
         {visionFields.map((field) => (
           <TextAreaBlock
             key={field.key}
+            fieldKey={field.key}
             label={field.label}
             helperText={field.helper}
+            highlighted={selectedFieldKey === field.key}
             value={values[field.key] ?? ""}
             onChange={(nextValue) => setFieldValue(field.key, nextValue)}
             onBlur={handleBlur}
+            onFocus={() => setSelectedFieldKey(field.key)}
           />
         ))}
       </div>
@@ -59,13 +73,18 @@ export function Step6Form({ workspaceId, initialValues }: Step6FormProps) {
           Data Vision Statement
         </div>
         <textarea
-          className="min-h-[120px] w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 shadow-sm outline-none transition focus:border-zinc-400"
+          className={`min-h-[120px] w-full rounded-xl border bg-white px-3 py-2 text-sm text-zinc-700 shadow-sm outline-none transition focus:border-zinc-400 ${
+            selectedFieldKey === "vision_statement"
+              ? "border-zinc-400 ring-2 ring-zinc-200"
+              : "border-zinc-200"
+          }`}
           placeholder="Edit your vision statement..."
           value={values.vision_statement ?? ""}
           onChange={(event) =>
             setFieldValue("vision_statement", event.target.value)
           }
           onBlur={handleBlur}
+          onFocus={() => setSelectedFieldKey("vision_statement")}
         />
       </div>
     </div>

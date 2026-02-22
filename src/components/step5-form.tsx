@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import { SaveIndicator } from "@/components/save-indicator";
 import { TextAreaBlock } from "@/components/textarea-block";
 import { useStepAutosave } from "@/hooks/use-step-autosave";
+import { useStepFormContext } from "@/components/step-form-context";
 
 type Step5FormProps = {
   workspaceId: string;
@@ -49,6 +51,15 @@ export function Step5Form({ workspaceId, initialValues }: Step5FormProps) {
     stepId: 5,
     initialValues,
   });
+  const { setFormAccessors, setSelectedFieldKey, selectedFieldKey } =
+    useStepFormContext();
+
+  useEffect(() => {
+    setFormAccessors(
+      (fieldKey) => values[fieldKey] ?? "",
+      (fieldKey, content) => setFieldValue(fieldKey, content)
+    );
+  }, [values, setFieldValue, setFormAccessors]);
 
   return (
     <div className="space-y-4">
@@ -62,11 +73,14 @@ export function Step5Form({ workspaceId, initialValues }: Step5FormProps) {
             {customerFields.map((field) => (
               <TextAreaBlock
                 key={field.key}
+                fieldKey={field.key}
                 label={field.label}
                 helperText={field.helper}
+                highlighted={selectedFieldKey === field.key}
                 value={values[field.key] ?? ""}
                 onChange={(nextValue) => setFieldValue(field.key, nextValue)}
                 onBlur={handleBlur}
+                onFocus={() => setSelectedFieldKey(field.key)}
               />
             ))}
           </div>
@@ -79,11 +93,14 @@ export function Step5Form({ workspaceId, initialValues }: Step5FormProps) {
             {valueMapFields.map((field) => (
               <TextAreaBlock
                 key={field.key}
+                fieldKey={field.key}
                 label={field.label}
                 helperText={field.helper}
+                highlighted={selectedFieldKey === field.key}
                 value={values[field.key] ?? ""}
                 onChange={(nextValue) => setFieldValue(field.key, nextValue)}
                 onBlur={handleBlur}
+                onFocus={() => setSelectedFieldKey(field.key)}
               />
             ))}
           </div>

@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import { SaveIndicator } from "@/components/save-indicator";
 import { TextAreaBlock } from "@/components/textarea-block";
 import { useStepAutosave } from "@/hooks/use-step-autosave";
+import { useStepFormContext } from "@/components/step-form-context";
 
 type Step3FormProps = {
   workspaceId: string;
@@ -25,6 +27,15 @@ export function Step3Form({ workspaceId, initialValues }: Step3FormProps) {
     stepId: 3,
     initialValues,
   });
+  const { setFormAccessors, setSelectedFieldKey, selectedFieldKey } =
+    useStepFormContext();
+
+  useEffect(() => {
+    setFormAccessors(
+      (fieldKey) => values[fieldKey] ?? "",
+      (fieldKey, content) => setFieldValue(fieldKey, content)
+    );
+  }, [values, setFieldValue, setFormAccessors]);
 
   return (
     <div className="space-y-4">
@@ -60,22 +71,28 @@ export function Step3Form({ workspaceId, initialValues }: Step3FormProps) {
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
             <TextAreaBlock
+              fieldKey={`${pillar.key}_evidence`}
               label="Evidence"
               helperText="Why did you choose this level?"
+              highlighted={selectedFieldKey === `${pillar.key}_evidence`}
               value={values[`${pillar.key}_evidence`] ?? ""}
               onChange={(nextValue) =>
                 setFieldValue(`${pillar.key}_evidence`, nextValue)
               }
               onBlur={handleBlur}
+              onFocus={() => setSelectedFieldKey(`${pillar.key}_evidence`)}
             />
             <TextAreaBlock
+              fieldKey={`${pillar.key}_constraints`}
               label="Constraints"
               helperText="What currently limits progress?"
+              highlighted={selectedFieldKey === `${pillar.key}_constraints`}
               value={values[`${pillar.key}_constraints`] ?? ""}
               onChange={(nextValue) =>
                 setFieldValue(`${pillar.key}_constraints`, nextValue)
               }
               onBlur={handleBlur}
+              onFocus={() => setSelectedFieldKey(`${pillar.key}_constraints`)}
             />
           </div>
         </div>

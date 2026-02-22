@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import { TextAreaBlock } from "@/components/textarea-block";
 import { SaveIndicator } from "@/components/save-indicator";
 import { useStepAutosave } from "@/hooks/use-step-autosave";
+import { useStepFormContext } from "@/components/step-form-context";
 
 type Step1Field = {
   key: string;
@@ -33,6 +35,15 @@ export function Step1Form({ workspaceId, initialValues }: Step1FormProps) {
     stepId: 1,
     initialValues,
   });
+  const { setFormAccessors, setSelectedFieldKey, selectedFieldKey } =
+    useStepFormContext();
+
+  useEffect(() => {
+    setFormAccessors(
+      (fieldKey) => values[fieldKey] ?? "",
+      (fieldKey, content) => setFieldValue(fieldKey, content)
+    );
+  }, [values, setFieldValue, setFormAccessors]);
 
   return (
     <div>
@@ -43,13 +54,16 @@ export function Step1Form({ workspaceId, initialValues }: Step1FormProps) {
       {step1Fields.map((field) => (
         <TextAreaBlock
           key={field.key}
+          fieldKey={field.key}
           label={field.label}
           helperText={field.helperText}
+          highlighted={selectedFieldKey === field.key}
           value={values[field.key] ?? ""}
           onChange={(nextValue) => {
             setFieldValue(field.key, nextValue);
           }}
           onBlur={handleBlur}
+          onFocus={() => setSelectedFieldKey(field.key)}
         />
       ))}
       </div>
